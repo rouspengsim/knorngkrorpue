@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ប្រព័ន្ធគ្រប់គ្រងមត្តេយ្យ | ផ្ទាំងគ្រប់គ្រង</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Geist:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Moul&family=Noto+Sans+Khmer:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260809-41" />
+</head>
+<body>
+  <div class="login-screen" id="loginScreen">
+    <section class="login-panel">
+      <div class="brand-lockup">
+        <div class="logo-mark">K</div>
+        <div>
+          <h1>ប្រព័ន្ធគ្រប់គ្រងមត្តេយ្យ</h1>
+          <p>សាលាមត្តេសិក្សាខ្នងក្រពើ</p>
+        </div>
+      </div>
+      <form id="loginForm" class="login-form">
+        <label>
+          ឈ្មោះអ្នកប្រើ
+          <input id="loginUsername" type="text" value="admin" autocomplete="username" required />
+        </label>
+        <label>
+          ពាក្យសម្ងាត់
+          <input id="loginPassword" type="password" value="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="primary-btn full">ចូលប្រើប្រាស់</button>
+        <p class="login-hint">គណនីសាកល្បង៖ admin, staff, teacher។ ពាក្យសម្ងាត់៖ password។</p>
+      </form>
+    </section>
+    <aside class="login-art">
+      <div class="sun"></div>
+      <div class="hill hill-one"></div>
+      <div class="hill hill-two"></div>
+      <div class="school-house">
+        <div class="roof"></div>
+        <div class="building">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="app-shell hidden" id="appShell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <div class="logo-mark">K</div>
+        <div>
+          <strong id="schoolNameSide">សាលាមត្តេសិក្សាខ្នងក្រពើ</strong>
+          <span>ផ្ទាំងគ្រប់គ្រង KMS</span>
+        </div>
+        <button class="icon-btn collapse-btn" id="sidebarCollapse" aria-label="បង្រួមម៉ឺនុយចំហៀង">
+          <i data-lucide="panel-left-close"></i>
+        </button>
+      </div>
+      <nav class="side-nav" id="sideNav"></nav>
+      <div class="sidebar-card">
+        <span class="small-label">ឆ្នាំសិក្សា</span>
+        <strong id="activeYearBadge">2026-2027</strong>
+        <button class="ghost-btn compact" data-nav="academic">គ្រប់គ្រង</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn mobile-only" id="menuToggle" aria-label="បើកម៉ឺនុយ">
+          <i data-lucide="menu"></i>
+        </button>
+        <div class="search-box">
+          <i data-lucide="search"></i>
+          <input id="globalSearch" type="search" placeholder="ស្វែងរកសិស្ស គ្រូបង្រៀន ថ្នាក់..." />
+        </div>
+        <div class="breadcrumb" id="breadcrumb">
+          <span>កន្លែងធ្វើការ</span>
+          <i data-lucide="chevron-right"></i>
+          <strong>ផ្ទាំងគ្រប់គ្រង</strong>
+        </div>
+        <button class="icon-btn" id="themeToggle" title="ប្តូររូបរាង">
+          <i data-lucide="moon"></i>
+        </button>
+        <button class="icon-btn has-dot" id="notificationBtn" title="ការជូនដំណឹង">
+          <i data-lucide="bell"></i>
+        </button>
+        <div class="profile-chip" id="profileBtn">
+          <span id="profileInitials">AD</span>
+          <div>
+            <strong id="profileName">អ្នកគ្រប់គ្រង</strong>
+            <small id="profileRole">អ្នកគ្រប់គ្រង</small>
+          </div>
+          <i data-lucide="chevron-down"></i>
+        </div>
+        <div class="popover hidden" id="notificationPanel"></div>
+        <div class="popover profile-menu hidden" id="profileMenu">
+          <button data-nav="settings"><i data-lucide="settings"></i>ការកំណត់សាលា</button>
+          <button data-nav="users"><i data-lucide="shield-check"></i>គ្រប់គ្រងអ្នកប្រើ</button>
+          <button id="logoutBtn"><i data-lucide="log-out"></i>ចាកចេញ</button>
+        </div>
+      </header>
+
+      <section class="view active" id="view-dashboard"></section>
+      <section class="view" id="view-students"></section>
+      <section class="view" id="view-teachers"></section>
+      <section class="view" id="view-classes"></section>
+      <section class="view" id="view-promotion"></section>
+      <section class="view" id="view-certificates"></section>
+      <section class="view" id="view-reports"></section>
+      <section class="view" id="view-users"></section>
+      <section class="view" id="view-academic"></section>
+      <section class="view" id="view-settings"></section>
+    </main>
+
+    <div class="fab-wrap">
+      <button class="fab" id="fabBtn" aria-label="សកម្មភាពរហ័ស">
+        <i data-lucide="plus"></i>
+      </button>
+      <div class="fab-menu hidden" id="fabMenu">
+        <button data-nav="students"><i data-lucide="user-plus"></i>សិស្សថ្មី</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="modal">
+    <div class="modal-dialog">
+      <button class="icon-btn modal-close" id="modalClose" aria-label="បិទ">
+        <i data-lucide="x"></i>
+      </button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <template id="studentPhotoTemplate">
+    <div class="photo-upload">
+      <img alt="រូបថតសិស្ស" />
+      <input type="file" accept="image/*" />
+      <button type="button" class="ghost-btn compact">បង្ហោះរូបថត</button>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="assets/html2canvas.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="app.js?v=20260810-04"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1123 794" preserveAspectRatio="none">
+  <rect width="1123" height="794" fill="#fff"/>
+  <defs>
+    <g id="scroll" fill="#fff8df" stroke="#bd9339" stroke-width="1.7" stroke-linejoin="round">
+      <path d="M6 70C17 24 47 4 82 12c26 6 39 28 30 50-7 17-27 23-42 14-11-7-12-21-4-30 8-8 22-7 27 3 3 7-2 16-10 17 12 2 23-6 25-18 3-17-11-30-30-32-25-3-50 12-64 41 15-18 42-26 61-13 14 10 16 31 2 43-14 11-36 8-43-8-5-12 2-25 15-27-15-2-30 6-38 21z"/>
+      <path d="M42 69c10-17 33-21 47-10 9 7 8 21-2 27-9 6-24 1-25-10 3 5 12 6 17 2 6-5 5-14-2-17-10-5-24 1-31 12z"/>
+      <path d="M4 8c15 6 24 18 26 32M31 8c9 9 14 20 14 34M104 8c-8 10-11 23-7 36"/>
+      <circle cx="32" cy="26" r="5"/><circle cx="65" cy="38" r="4"/><circle cx="91" cy="28" r="5"/>
+      <path d="M3 74h110M16 83h82"/>
+    </g>
+    <g id="sideScroll">
+      <use href="#scroll" transform="rotate(90 56 56)"/>
+    </g>
+    <g id="corner" fill="#fff8df" stroke="#bd9339" stroke-width="1.9" stroke-linejoin="round">
+      <path d="M15 135C16 82 42 31 92 15c37-12 76 7 77 45 1 25-20 45-44 42-19-2-32-20-25-38 5-14 22-21 35-13-12 0-20 10-18 21 2 12 17 18 29 11 17-10 16-34-1-46-26-19-66-7-88 27-20 31-22 68-11 103z"/>
+      <path d="M135 15C82 16 31 42 15 92 3 129 22 168 60 169c25 1 45-20 42-44-2-19-20-32-38-25-14 5-21 22-13 35 0-12 10-20 21-18 12 2 18 17 11 29-10 17-34 16-46-1-19-26-7-66 27-88 31-20 68-22 103-11z"/>
+      <circle cx="72" cy="72" r="22"/><path d="M55 75c15-22 43-21 53 2M73 54c-5 21 3 35 25 42"/>
+    </g>
+  </defs>
+
+  <g opacity=".86">
+    <use href="#corner" x="18" y="15"/>
+    <use href="#corner" x="953" y="15" transform="scale(-1 1) translate(-2076 0)"/>
+    <use href="#corner" x="18" y="625" transform="scale(1 -1) translate(0 -1418)"/>
+    <use href="#corner" x="953" y="625" transform="scale(-1 -1) translate(-2076 -1418)"/>
+
+    <use href="#scroll" x="138" y="15"/><use href="#scroll" x="250" y="15"/><use href="#scroll" x="362" y="15"/><use href="#scroll" x="474" y="15"/>
+    <use href="#scroll" x="586" y="15"/><use href="#scroll" x="698" y="15"/><use href="#scroll" x="810" y="15"/>
+    <use href="#scroll" x="138" y="707" transform="scale(1 -1) translate(0 -1508)"/><use href="#scroll" x="250" y="707" transform="scale(1 -1) translate(0 -1508)"/>
+    <use href="#scroll" x="362" y="707" transform="scale(1 -1) translate(0 -1508)"/><use href="#scroll" x="474" y="707" transform="scale(1 -1) translate(0 -1508)"/>
+    <use href="#scroll" x="586" y="707" transform="scale(1 -1) translate(0 -1508)"/><use href="#scroll" x="698" y="707" transform="scale(1 -1) translate(0 -1508)"/>
+    <use href="#scroll" x="810" y="707" transform="scale(1 -1) translate(0 -1508)"/>
+
+    <use href="#sideScroll" x="16" y="145"/><use href="#sideScroll" x="16" y="252"/><use href="#sideScroll" x="16" y="359"/><use href="#sideScroll" x="16" y="466"/><use href="#sideScroll" x="16" y="573"/>
+    <use href="#sideScroll" x="990" y="145" transform="scale(-1 1) translate(-2100 0)"/><use href="#sideScroll" x="990" y="252" transform="scale(-1 1) translate(-2100 0)"/>
+    <use href="#sideScroll" x="990" y="359" transform="scale(-1 1) translate(-2100 0)"/><use href="#sideScroll" x="990" y="466" transform="scale(-1 1) translate(-2100 0)"/>
+    <use href="#sideScroll" x="990" y="573" transform="scale(-1 1) translate(-2100 0)"/>
+  </g>
+
+  <g fill="none" stroke="#bd9339" opacity=".9">
+    <rect x="32" y="28" width="1059" height="738" stroke-width="2.2"/>
+    <rect x="76" y="72" width="971" height="650" stroke-width="1.5"/>
+    <rect x="86" y="82" width="951" height="630" stroke-width="1.1"/>
+    <rect x="96" y="92" width="931" height="610" stroke-width=".8"/>
+  </g>
+</svg>
