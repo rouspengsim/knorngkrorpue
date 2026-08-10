@@ -1,0 +1,9 @@
+{
+  "name": "knorngkrorpue",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080 --bind 127.0.0.1",
+    "build": "echo \"Static site: no build step required\""
+  }
+}
