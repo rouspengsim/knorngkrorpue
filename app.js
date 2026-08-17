@@ -2016,7 +2016,7 @@ function certificateMarkup(cert, student, printArea = false) {
         </header>
         <main class="cert-content">
           <h2>វិញ្ញាបនបត្រមត្តេយ្យសិក្សា</h2>
-          <h3>បានបញ្ចប់ការសិក្សាមត្តេយ្យថ្នាក់ខ្ពស់</h3>
+          <h3>បានបញ្ចប់ការសិក្សាមត្តេយ្យថ្នាក់កម្រិតខ្ពស់</h3>
           <p class="cert-intro">បានបញ្ជាក់ថា</p>
           <div class="cert-student-line cert-name-row">
             <span>បញ្ជាក់ថា</span>
@@ -2034,7 +2034,7 @@ function certificateMarkup(cert, student, printArea = false) {
             <span>ឆ្នាំសិក្សា</span>
             <strong>${localizedAcademicYear}</strong>
           </div>
-          <p class="cert-body-text">បានអនុញ្ញាតឱ្យបន្តការសិក្សាចូលរៀនថ្នាក់បឋមសិក្សា<br>សម្រាប់ប្រើប្រាស់ទីការបន្តរៀននេះ ដើម្បីប្រកបដោយភាពជោគជ័យ។</p>
+          <p class="cert-body-text">បានអនុវត្តខ្លួនគ្រប់លក្ខខណ្ឌក្នុងការទទួលវិញ្ញាបនបត្របញ្ចប់កម្រិតមត្តេយ្យសិក្សា<br>សម្រេចប្រគល់ជូនវិញ្ញបនបត្រនេះ ដើម្បីប្រើប្រាស់តាមការដែលអាចប្រើបាន។</p>
         </main>
         <footer class="cert-footer">
           <div></div>
