@@ -2065,7 +2065,7 @@ function showCertificate(id) {
       <button class="ghost-btn" type="button" id="downloadCertImageBtn"><i data-lucide="image-down"></i>រក្សាទុករូបភាព PNG</button>
     </div>
   `);
-  $("#downloadCertPdfBtn").addEventListener("click", printCertificates);
+  $("#downloadCertPdfBtn").addEventListener("click", printCertificatesAsImages);
   $("#downloadCertImageBtn").addEventListener("click", downloadCertificateImage);
 }
 
@@ -2097,7 +2097,7 @@ function showCertificateBatch(rows = studentRows(), title = "វិញ្ញា�
       ${renderCertificateBatchPages(allRows)}
     </div>
   `);
-  $("#printCertificateBatchBtn").addEventListener("click", printCertificates);
+  $("#printCertificateBatchBtn").addEventListener("click", printCertificatesAsImages);
   $$("[data-certificate-class]").forEach((button) => {
     button.addEventListener("click", () => {
       const classNameValue = button.dataset.certificateClass;
@@ -2129,15 +2129,6 @@ async function captureCertificatePages() {
   } finally {
     window.scrollTo(0, originalScrollY);
   }
-}
-
-function printCertificates() {
-  const printable = $("#certificatePrintStack") || $(".certificate-landscape.print-area") || $(".certificate-landscape");
-  if (!printable) {
-    alert("មិនមានវិញ្ញាបនបត្រសម្រាប់បោះពុម្ពទេ។");
-    return;
-  }
-  window.print();
 }
 
 async function printCertificatesAsImages() {
@@ -2180,6 +2171,7 @@ async function printCertificatesAsImages() {
         }
         .certificate-print-page img {
           width: 281mm;
+          height: 194mm;
           max-height: 194mm;
           object-fit: contain;
           display: block;
