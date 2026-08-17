@@ -61,3 +61,18 @@ teacher / password
 - `database_backups`
 
 Composer មិនមាននៅក្នុងបរិស្ថាននេះទេ ដូច្នេះ workspace នេះមាន Frontend prototype ពេញលេញ និង Database schema ជំនួស Laravel Breeze project ដែលបាន scaffold។
+
+## Sync across devices
+
+The deployed app can sync all system data through Supabase using the Vercel API route in `api/state.js`.
+
+1. Create a Supabase project.
+2. Run `supabase.sql` in the Supabase SQL editor. The `app_state` table stores the shared app data.
+3. In Vercel project environment variables, add:
+
+```text
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+```
+
+After redeploying, data added on one device is saved to Supabase and becomes visible on other devices after refresh or automatic sync. If these variables are missing, the app falls back to browser-only `localStorage`.

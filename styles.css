@@ -1873,6 +1873,16 @@ tr:hover td {
   border-bottom: 1px dotted #172033;
 }
 
+.cert-name-row .cert-student-name {
+  min-height: 42px;
+  padding: 0 10px 7px;
+  color: #c52228;
+  font-family: var(--font-khmer-title);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
 .cert-photo-box {
   width: 68px;
   height: 102px;
@@ -2580,6 +2590,13 @@ tr:hover td {
     padding: .5mm 1.8mm 1mm;
     font-size: 10.8px;
     line-height: 1.42;
+  }
+
+  .cert-name-row .cert-student-name {
+    min-height: 10mm;
+    padding: 0 2.4mm 1.6mm;
+    font-size: 18.5px;
+    line-height: 1.16;
   }
 
   .cert-photo-box {

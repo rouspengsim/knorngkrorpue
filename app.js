@@ -1,4 +1,9 @@
 const STORAGE_KEY = "little-sprouts-kms-v2-empty-students";
+const SYNC_CONFIG = {
+  endpoint: window.KMS_SYNC_CONFIG?.endpoint || "/api/state",
+  pollMs: Number(window.KMS_SYNC_CONFIG?.pollMs) || 15000,
+  enabled: window.KMS_SYNC_CONFIG?.enabled !== false
+};
 
 const icons = {
   dashboard: "layout-dashboard",
@@ -71,6 +76,10 @@ let currentUser = null;
 let activeView = "dashboard";
 let chartRefs = {};
 let tableState = {};
+let syncTimer = null;
+let syncHydrated = false;
+let syncLastSavedJson = "";
+let syncLastError = "";
 
 function importedStudentRows(academicYear) {
   const yearCode = academicYear.id.replace(/\D/g, "") || "2025";
@@ -408,6 +417,82 @@ function loadState() {
   }
 }
 
+function canSyncState() {
+  return Boolean(SYNC_CONFIG.enabled && SYNC_CONFIG.endpoint && window.fetch);
+}
+
+async function hydrateStateFromRemote() {
+  if (!canSyncState()) return;
+  try {
+    const response = await fetch(SYNC_CONFIG.endpoint, { cache: "no-store" });
+    if (response.ok) {
+      const payload = await response.json();
+      if (payload?.data && Object.keys(payload.data).length) {
+        state = migrateState(payload.data);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        syncLastSavedJson = JSON.stringify(state);
+        syncHydrated = true;
+      } else {
+        await persistStateToRemote();
+      }
+      return;
+    }
+    if (response.status === 404) {
+      await persistStateToRemote();
+    }
+  } catch (error) {
+    syncLastError = error.message || String(error);
+  }
+}
+
+async function persistStateToRemote() {
+  if (!canSyncState()) return;
+  const dataJson = JSON.stringify(state);
+  if (syncHydrated && dataJson === syncLastSavedJson) return;
+  try {
+    const response = await fetch(SYNC_CONFIG.endpoint, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: state })
+    });
+    if (!response.ok) throw new Error(`Sync save failed: ${response.status}`);
+    syncLastSavedJson = dataJson;
+    syncHydrated = true;
+    syncLastError = "";
+  } catch (error) {
+    syncLastError = error.message || String(error);
+  }
+}
+
+async function refreshStateFromRemote() {
+  if (!canSyncState() || !currentUser) return;
+  try {
+    const response = await fetch(SYNC_CONFIG.endpoint, { cache: "no-store" });
+    if (!response.ok) return;
+    const payload = await response.json();
+    if (!payload?.data) return;
+    const remoteState = migrateState(payload.data);
+    const remoteJson = JSON.stringify(remoteState);
+    if (remoteJson === JSON.stringify(state)) return;
+    state = remoteState;
+    localStorage.setItem(STORAGE_KEY, remoteJson);
+    syncLastSavedJson = remoteJson;
+    currentUser = state.users.find((user) => user.id === currentUser.id) || currentUser;
+    renderShell();
+    render();
+  } catch (error) {
+    syncLastError = error.message || String(error);
+  }
+}
+
+function startStateSync() {
+  if (!canSyncState() || syncTimer) return;
+  syncTimer = window.setInterval(refreshStateFromRemote, SYNC_CONFIG.pollMs);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshStateFromRemote();
+  });
+}
+
 function migrateState(data) {
   data.academicYears ||= [];
   data.students ||= [];
@@ -498,6 +583,7 @@ function saveState(action) {
     state.activityLogs = state.activityLogs.slice(0, 50);
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  persistStateToRemote();
   render();
 }
 
@@ -568,7 +654,8 @@ function allowedItems() {
   return navItems.filter(([, , roles]) => roles.includes(currentUser.role));
 }
 
-function init() {
+async function init() {
+  await hydrateStateFromRemote();
   const savedUser = sessionStorage.getItem("kms-user");
   if (savedUser) {
     currentUser = state.users.find((user) => user.id === savedUser) || null;
@@ -612,6 +699,7 @@ function init() {
   $("#globalSearch").addEventListener("input", handleGlobalSearch);
 
   document.body.dataset.theme = localStorage.getItem("kms-theme") || "light";
+  startStateSync();
   currentUser ? enterApp() : showLogin();
 }
 
@@ -1918,7 +2006,7 @@ function certificateMarkup(cert, student, printArea = false) {
             <div class="cert-emblem"><img src="${ministryLogo}" alt="និមិត្តសញ្ញាក្រសួងអប់រំ"></div>
             <p>ក្រសួងអប់រំ យុវជន និងកីឡាស្រុកមេមត់</p>
             <p>សាលាមត្តេយ្យសិក្សាខ្នងក្រពើ</p>
-            <p class="cert-ref">លេខៈ ........ /បស.ក.ព</p>
+            <p class="cert-ref">លេខៈ ........ /មត.ខ.ព</p>
           </div>
           <div class="cert-kingdom">
             <p>ព្រះរាជាណាចក្រកម្ពុជា</p>
@@ -1932,7 +2020,7 @@ function certificateMarkup(cert, student, printArea = false) {
           <p class="cert-intro">បានបញ្ជាក់ថា</p>
           <div class="cert-student-line cert-name-row">
             <span>បញ្ជាក់ថា</span>
-            <strong>${studentName}</strong>
+            <strong class="cert-student-name">${studentName}</strong>
             <span>ភេទ</span>
             <strong>${label(student?.gender)}</strong>
           </div>

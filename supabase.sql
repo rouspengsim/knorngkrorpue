@@ -209,6 +209,16 @@ create table if not exists database_backups (
   created_at timestamptz default now()
 );
 
+create table if not exists app_state (
+  id text primary key default 'main',
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+insert into app_state (id, data)
+values ('main', '{}'::jsonb)
+on conflict (id) do nothing;
+
 create or replace function set_updated_at()
 returns trigger as $$
 begin
@@ -260,6 +270,11 @@ for each row execute function set_updated_at();
 drop trigger if exists set_school_events_updated_at on school_events;
 create trigger set_school_events_updated_at
 before update on school_events
+for each row execute function set_updated_at();
+
+drop trigger if exists set_app_state_updated_at on app_state;
+create trigger set_app_state_updated_at
+before update on app_state
 for each row execute function set_updated_at();
 
 alter table classes
