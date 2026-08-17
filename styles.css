@@ -2224,6 +2224,12 @@ tr:hover td {
     background: #fff;
   }
 
+  html:has(.certificate-landscape),
+  body:has(.certificate-landscape) {
+    width: 297mm;
+    min-height: 210mm;
+  }
+
   .modal {
     position: static !important;
     inset: auto !important;

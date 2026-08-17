@@ -2061,11 +2061,11 @@ function showCertificate(id) {
   openModal(`
     ${certificateMarkup(cert, student, true)}
     <div class="page-actions no-print" style="justify-content:center;margin-top:16px">
-      <button class="primary-btn" type="button" id="downloadCertPdfBtn"><i data-lucide="file-down"></i>រក្សាទុក PDF</button>
+      <button class="primary-btn" type="button" id="downloadCertPdfBtn"><i data-lucide="file-down"></i>បោះពុម្ព / រក្សាទុក PDF</button>
       <button class="ghost-btn" type="button" id="downloadCertImageBtn"><i data-lucide="image-down"></i>រក្សាទុករូបភាព PNG</button>
     </div>
   `);
-  $("#downloadCertPdfBtn").addEventListener("click", printCertificatesAsImages);
+  $("#downloadCertPdfBtn").addEventListener("click", printCertificates);
   $("#downloadCertImageBtn").addEventListener("click", downloadCertificateImage);
 }
 
@@ -2090,14 +2090,14 @@ function showCertificateBatch(rows = studentRows(), title = "វិញ្ញា�
         ${gradeOrder.map((item) => `<button data-certificate-class="${item}">${item}</button>`).join("")}
       </div>
       <div class="page-actions">
-        <button class="primary-btn" type="button" id="printCertificateBatchBtn"><i data-lucide="printer"></i>បោះពុម្ព / PDF</button>
+        <button class="primary-btn" type="button" id="printCertificateBatchBtn"><i data-lucide="printer"></i>បោះពុម្ព / រក្សាទុក PDF</button>
       </div>
     </div>
     <div class="certificate-print-stack print-area" id="certificatePrintStack" data-certificate-filename="${title.replace(/[\\/:*?"<>|]/g, "-")}">
       ${renderCertificateBatchPages(allRows)}
     </div>
   `);
-  $("#printCertificateBatchBtn").addEventListener("click", printCertificatesAsImages);
+  $("#printCertificateBatchBtn").addEventListener("click", printCertificates);
   $$("[data-certificate-class]").forEach((button) => {
     button.addEventListener("click", () => {
       const classNameValue = button.dataset.certificateClass;
@@ -2129,6 +2129,15 @@ async function captureCertificatePages() {
   } finally {
     window.scrollTo(0, originalScrollY);
   }
+}
+
+function printCertificates() {
+  const printable = $("#certificatePrintStack") || $(".certificate-landscape.print-area") || $(".certificate-landscape");
+  if (!printable) {
+    alert("មិនមានវិញ្ញាបនបត្រសម្រាប់បោះពុម្ពទេ។");
+    return;
+  }
+  window.print();
 }
 
 async function printCertificatesAsImages() {
