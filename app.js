@@ -556,15 +556,19 @@ function migrateState(data) {
 	    student.khmerName = studentKhmerNames[student.khmerName] || student.khmerName;
 	    student.parentName = parentNames[student.parentName] || student.parentName;
 	    student.address = addresses[student.address] || student.address;
-	    student.classLevel = normalizeClassName(student.classLevel);
+	    student.classLevel = student.classLevel ? normalizeClassName(student.classLevel) : "";
 	    if (student.address && !student.currentProvince) {
 	      student.currentProvince = student.address;
 	    }
 	    if (student.birthPlace && !student.birthProvince) {
 	      student.birthProvince = student.birthPlace;
 	    }
+	    const cls = resolveStudentClass(student, data.classes);
+	    if (cls) applyStudentClass(student, cls);
 	  });
   ensureHighClassStudentImport(data);
+  ensureUniqueStudentIdentifiers(data);
+  reconcileTeacherClassAssignments(data);
 	  data.certificates = (data.certificates || []).filter((cert) => data.students.some((student) => student.id === cert.studentId));
   data.events?.forEach((event) => {
     if (event.title === "Parent meeting") event.title = "ប្រជុំមាតាបិតា";
@@ -595,6 +599,7 @@ function avatar(name, index = 0) {
 
 function ageFromDob(dob) {
   const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return "";
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
   const m = now.getMonth() - birth.getMonth();
@@ -606,8 +611,8 @@ function activeYear() {
   return state.academicYears.find((year) => year.status === "Active") || state.academicYears[0];
 }
 
-function getClass(id) {
-  return state.classes.find((item) => item.id === id);
+function getClass(id, classes = state.classes) {
+  return (classes || []).find((item) => item.id === id);
 }
 
 function getTeacher(id) {
@@ -623,7 +628,7 @@ function label(value) {
 }
 
 function className(id) {
-  const item = getClass(id);
+  const item = getClass(id) || findClassByName(id);
   return item ? label(item.name) : "មិនទាន់កំណត់ថ្នាក់";
 }
 
@@ -638,6 +643,129 @@ function classLevelName(value) {
 
 function classLevelIndex(value) {
   return Math.max(0, gradeOrder.indexOf(classLevelName(value)));
+}
+
+function findClassByName(value, classes = state.classes) {
+  if (!value) return null;
+  const normalized = normalizeClassName(value);
+  return (classes || []).find((item) => normalizeClassName(item.name) === normalized)
+    || (classes || []).find((item) => classLevelName(item.name) === classLevelName(normalized))
+    || null;
+}
+
+function classAtLevel(level, classes = state.classes) {
+  return (classes || []).find((item) => Number(item.level) === level) || null;
+}
+
+function resolveStudentClass(student, classes = state.classes) {
+  if (!student) return null;
+  return getClass(student.classId, classes)
+    || findClassByName(student.classId, classes)
+    || findClassByName(student.classLevel, classes)
+    || findClassByName(student.className, classes);
+}
+
+function applyStudentClass(student, cls) {
+  if (!student || !cls) return;
+  student.classId = cls.id;
+  student.classLevel = cls.name;
+  student.teacherId = cls.teacherId || "";
+}
+
+function clearStudentClass(student) {
+  if (!student) return;
+  student.classId = "";
+  student.classLevel = "";
+  student.teacherId = "";
+}
+
+function studentClassValues(student) {
+  const cls = resolveStudentClass(student);
+  const values = [
+    student?.classId,
+    student?.classLevel,
+    student?.className,
+    cls?.id,
+    cls?.name
+  ];
+  [student?.classLevel, student?.className, cls?.name].forEach((value) => {
+    if (!value) return;
+    values.push(normalizeClassName(value), classLevelName(value));
+  });
+  return new Set(values.filter(Boolean));
+}
+
+function studentMatchesClassValue(student, classValue) {
+  return !classValue || studentClassValues(student).has(classValue);
+}
+
+function studentDisplayClassName(student) {
+  const cls = resolveStudentClass(student);
+  return cls ? label(cls.name) : "មិនទាន់កំណត់ថ្នាក់";
+}
+
+function assignClassTeacher(classId, teacherId, data = state) {
+  const classes = data.classes || [];
+  const teachers = data.teachers || [];
+  classes.forEach((item) => {
+    if (item.id === classId) item.teacherId = teacherId || "";
+    else if (teacherId && item.teacherId === teacherId) item.teacherId = "";
+  });
+  teachers.forEach((teacher) => {
+    if (teacher.id === teacherId) teacher.assignedClassId = classId || "";
+    else if (teacher.assignedClassId === classId) teacher.assignedClassId = "";
+  });
+}
+
+function reconcileTeacherClassAssignments(data = state) {
+  const classes = data.classes || [];
+  const teachers = data.teachers || [];
+  teachers.forEach((teacher) => {
+    const cls = classes.find((item) => item.id === teacher.assignedClassId);
+    if (cls && !cls.teacherId) cls.teacherId = teacher.id;
+  });
+  classes.forEach((cls) => {
+    const teacher = teachers.find((item) => item.id === cls.teacherId);
+    if (teacher) teacher.assignedClassId = cls.id;
+  });
+}
+
+function studentYearPrefix(student, data = state) {
+  const active = (data.academicYears || []).find((year) => year.status === "Active") || (data.academicYears || [])[0];
+  const value = student?.academicYearName || active?.name || new Date().getFullYear();
+  return String(value).match(/\d{4}/)?.[0] || String(new Date().getFullYear());
+}
+
+function nextUniqueStudentCode(prefix, year, usedValues) {
+  const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+  const maxSequence = [...usedValues].reduce((max, value) => {
+    const match = String(value || "").match(pattern);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  let sequence = maxSequence + 1;
+  let code = `${prefix}-${year}-${String(sequence).padStart(3, "0")}`;
+  while (usedValues.has(code)) {
+    sequence += 1;
+    code = `${prefix}-${year}-${String(sequence).padStart(3, "0")}`;
+  }
+  return code;
+}
+
+function ensureUniqueStudentIdentifiers(data = state) {
+  const usedIds = new Set();
+  const usedRegistrationNos = new Set();
+  (data.students || []).forEach((student) => {
+    const year = studentYearPrefix(student, data);
+    if (!student.id || usedIds.has(student.id)) {
+      student.id = nextUniqueStudentCode("STD", year, usedIds);
+    }
+    usedIds.add(student.id);
+
+    if (!student.registrationNo || usedRegistrationNos.has(student.registrationNo)) {
+      student.registrationNo = nextUniqueStudentCode("REG", year, usedRegistrationNos);
+    }
+    usedRegistrationNos.add(student.registrationNo);
+  });
 }
 
 function formatLocation(record, prefix, fallbackKey) {
@@ -833,10 +961,10 @@ function statCard(label, value, icon, color = "") {
 function renderDashboard() {
   const activeStudents = state.students.filter((student) => student.status === "Active");
   const graduated = state.students.filter((student) => student.status === "Graduated");
-  const recent = [...state.students].sort((a, b) => b.enrollmentDate.localeCompare(a.enrollmentDate)).slice(0, 5);
+  const recent = [...state.students].sort((a, b) => String(b.enrollmentDate || "").localeCompare(String(a.enrollmentDate || ""))).slice(0, 5);
   const classTotals = state.classes.map((item) => ({
     ...item,
-    enrolled: activeStudents.filter((student) => student.classId === item.id).length
+    enrolled: activeStudents.filter((student) => studentMatchesClassValue(student, item.id)).length
   }));
   const capacity = classTotals.reduce((sum, item) => sum + Number(item.capacity || 0), 0);
   const utilization = capacity ? Math.round((activeStudents.length / capacity) * 100) : 0;
@@ -886,7 +1014,7 @@ function renderDashboard() {
             <div class="summary-tile">
               <div class="student-cell">
                 <img class="avatar" src="${student.photo}" alt="">
-                <div><strong>${student.englishName}</strong><p class="muted">${className(student.classId)}</p></div>
+                <div><strong>${student.englishName}</strong><p class="muted">${studentDisplayClassName(student)}</p></div>
               </div>
               <span class="badge">${student.enrollmentDate}</span>
             </div>
@@ -944,6 +1072,9 @@ function renderStudents() {
 	}
 
 function studentForm(student = {}) {
+  const assignedClass = resolveStudentClass(student) || getClass(student.classId) || state.classes[0];
+  const selectedClassId = assignedClass?.id || "";
+  const selectedTeacherId = student.teacherId || assignedClass?.teacherId || "";
   return `
     <form id="studentForm" class="form-grid">
       <input type="hidden" name="id" value="${student.id || ""}">
@@ -953,7 +1084,8 @@ function studentForm(student = {}) {
         <button class="ghost-btn compact" type="button" id="studentPhotoBtn"><i data-lucide="image-plus"></i>បង្ហោះរូបថត</button>
       </div>
       <div class="form-grid two">
-        <label>លេខចុះឈ្មោះ<input name="registrationNo" value="${student.registrationNo || nextRegistrationNo()}" required></label>
+        <input type="hidden" name="registrationNo" value="${student.registrationNo || nextRegistrationNo()}">
+        <label>អត្តលេខ<input value="${student.id || nextStudentId()}" readonly></label>
         <label>ឆ្នាំសិក្សា<input name="academicYearName" value="${student.academicYearName || activeYear()?.name || ""}" required></label>
         <label>ឈ្មោះខ្មែរ<input name="khmerName" value="${student.khmerName || ""}" required></label>
         <label>ភេទ<select name="gender">${options(["Female", "Male"], student.gender)}</select></label>
@@ -971,10 +1103,10 @@ function studentForm(student = {}) {
         <label>មុខរបរម្តាយ<input name="motherOccupation" value="${student.motherOccupation || ""}"></label>
         <label>លេខទូរស័ព្ទ<input name="phone" value="${student.phone || ""}" required></label>
         <label>ថ្ងៃចុះឈ្មោះ<input name="enrollmentDate" type="date" value="${student.enrollmentDate || today()}" required></label>
-        <label>ថ្នាក់<select name="classId">${classOptions("ជ្រើសថ្នាក់", student.classId || state.classes[0]?.id || "")}</select></label>
-        <input type="hidden" name="classLevel" value="${student.classLevel || getClass(student.classId)?.name || ""}">
+        <label>ថ្នាក់<select name="classId">${classOptions("ជ្រើសថ្នាក់", selectedClassId)}</select></label>
+        <input type="hidden" name="classLevel" value="${assignedClass?.name || student.classLevel || ""}">
         <label>ស្ថានភាព<select name="status">${options(["Active", "Inactive", "Graduated"], student.status || "Active")}</select></label>
-        <label>គ្រូទទួលបន្ទុក<select name="teacherId">${teacherOptions("ជ្រើសគ្រូ", student.teacherId || getClass(student.classId)?.teacherId || "")}</select></label>
+        <label>គ្រូទទួលបន្ទុក<select name="teacherId">${teacherOptions("ជ្រើសគ្រូ", selectedTeacherId)}</select></label>
         <label>អ្នកទទួលចុះឈ្មោះ<input name="receivedBy" value="${student.receivedBy || currentUser?.name || ""}"></label>
         <label>អាសយដ្ឋានបច្ចុប្បន្ន - ភូមិ<input name="currentVillage" value="${student.currentVillage || ""}"></label>
         <label>អាសយដ្ឋានបច្ចុប្បន្ន - ឃុំ/សង្កាត់<input name="currentCommune" value="${student.currentCommune || ""}"></label>
@@ -984,13 +1116,20 @@ function studentForm(student = {}) {
       <label>ចំណាំ<textarea name="note" rows="2">${student.note || ""}</textarea></label>
       <div class="page-actions">
         <button class="primary-btn" type="submit"><i data-lucide="save"></i>រក្សាទុកសិស្ស</button>
-        <button class="ghost-btn" type="button" id="previewStudentReceiptBtn"><i data-lucide="printer"></i>មើលបង្កាន់ដៃ</button>
       </div>
     </form>
   `;
 }
 
 function bindStudentForm() {
+  const classSelect = $("#studentForm [name='classId']");
+  const classLevelInput = $("#studentForm [name='classLevel']");
+  const teacherSelect = $("#studentForm [name='teacherId']");
+  classSelect.addEventListener("change", () => {
+    const cls = getClass(classSelect.value);
+    classLevelInput.value = cls?.name || "";
+    if (cls?.teacherId) teacherSelect.value = cls.teacherId;
+  });
   $("#studentPhotoBtn").addEventListener("click", () => $("#studentPhotoInput").click());
   $("#studentPhotoInput").addEventListener("change", (event) => {
     const file = event.target.files[0];
@@ -1022,16 +1161,6 @@ function bindStudentForm() {
     closeModal();
     renderStudents();
     showStudentReceipt(savedId);
-  });
-  $("#previewStudentReceiptBtn").addEventListener("click", () => {
-    const data = Object.fromEntries(new FormData($("#studentForm")).entries());
-    data.id = data.id || nextStudentId();
-    data.englishName = data.khmerName;
-    data.photo = $("#studentPhotoPreview").src;
-    data.birthPlace = formatLocation(data, "birth", "birthPlace");
-    data.address = formatLocation(data, "current", "address");
-    data.classLevel = getClass(data.classId)?.name || data.classLevel || "";
-    showStudentReceipt(null, data);
   });
 }
 
@@ -1090,7 +1219,7 @@ function filteredStudentRows() {
   const status = $("#studentStatusFilter")?.value || "";
   return studentRows().filter((student) => {
     const text = `${student.id} ${student.khmerName} ${student.englishName} ${student.phone} ${student.parentName} ${student.fatherName} ${student.motherName}`.toLowerCase();
-    return text.includes(search) && (!classId || student.classId === classId) && (!status || student.status === status);
+    return text.includes(search) && studentMatchesClassValue(student, classId) && (!status || student.status === status);
   });
 }
 
@@ -1100,7 +1229,7 @@ function studentRows() {
     age: ageFromDob(student.dob),
     birthPlace: formatLocation(student, "birth", "birthPlace"),
     address: formatLocation(student, "current", "address"),
-    className: className(student.classId)
+    className: studentDisplayClassName(student)
   }));
 }
 
@@ -1142,9 +1271,7 @@ function renderStudentDetailRows(rows) {
 }
 
 function classMatchesStudent(student, classNameValue) {
-  if (!classNameValue) return true;
-  const cls = getClass(student.classId);
-  return classLevelName(student.classLevel) === classNameValue || classLevelName(cls?.name) === classNameValue;
+  return studentMatchesClassValue(student, classNameValue);
 }
 
 function showStudentDetailTable(rows = studentRows()) {
@@ -1214,7 +1341,7 @@ function compactRegistrationNo(value) {
 }
 
 function studentCardMarkup(student) {
-  const cls = getClass(student.classId);
+  const cls = resolveStudentClass(student);
   const teacher = getTeacher(student.teacherId || cls?.teacherId);
   const name = splitStudentName(student.khmerName || student.englishName || "");
   const issueLines = formatCertificateIssueLines(today());
@@ -1479,7 +1606,7 @@ async function downloadStudentCardsImage() {
 function showStudentProfile(studentId) {
   const student = studentRows().find((item) => item.id === studentId);
   if (!student) return;
-  const cls = getClass(student.classId);
+  const cls = resolveStudentClass(student);
   const teacher = getTeacher(student.teacherId || cls?.teacherId);
   const name = splitStudentName(student.khmerName || student.englishName || "");
   openModal(`
@@ -1573,25 +1700,34 @@ function deleteStudent(id) {
 
 function nextStudentId() {
   const year = activeYear()?.name.slice(0, 4) || new Date().getFullYear();
-  const sequence = String(state.students.length + 1).padStart(3, "0");
+  const pattern = new RegExp(`^STD-${year}-(\\d+)$`);
+  const maxSequence = state.students.reduce((max, student) => {
+    const match = String(student.id || "").match(pattern);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  const sequence = String(maxSequence + 1).padStart(3, "0");
   return `STD-${year}-${sequence}`;
 }
 
 function nextRegistrationNo() {
   const year = activeYear()?.name.slice(0, 4) || new Date().getFullYear();
-  return `REG-${year}-${String(state.students.length + 1).padStart(3, "0")}`;
+  const pattern = new RegExp(`^REG-${year}-(\\d+)$`);
+  const maxSequence = state.students.reduce((max, student) => {
+    const match = String(student.registrationNo || "").match(pattern);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `REG-${year}-${String(maxSequence + 1).padStart(3, "0")}`;
 }
 
 function showStudentReceipt(studentId, draftStudent = null) {
   const student = draftStudent || getStudent(studentId);
   if (!student) return;
-  const cls = getClass(student.classId);
+  const cls = resolveStudentClass(student);
   const teacher = getTeacher(student.teacherId || cls?.teacherId);
-  const receiptNo = student.registrationNo || nextRegistrationNo();
   openModal(`
     <div class="registration-receipts receipt-a4 print-area">
-      ${registrationReceiptCopy(student, receiptNo, cls, teacher, "សម្រាប់សិស្ស")}
-      ${registrationReceiptCopy(student, receiptNo, cls, teacher, "សម្រាប់គ្រូ")}
+      ${registrationReceiptCopy(student, cls, teacher, "សម្រាប់សិស្ស")}
+      ${registrationReceiptCopy(student, cls, teacher, "សម្រាប់គ្រូ")}
     </div>
     <div class="page-actions no-print" style="justify-content:center;margin-top:16px">
       <button class="primary-btn" onclick="window.print()"><i data-lucide="printer"></i>បោះពុម្ពបង្កាន់ដៃ</button>
@@ -1599,7 +1735,7 @@ function showStudentReceipt(studentId, draftStudent = null) {
   `);
 }
 
-function registrationReceiptCopy(student, receiptNo, cls, teacher, copyLabel) {
+function registrationReceiptCopy(student, cls, teacher, copyLabel) {
   const dob = splitDate(student.dob);
   const enrolled = splitDate(student.enrollmentDate);
   const birthPlace = formatLocation(student, "birth", "birthPlace");
@@ -1622,11 +1758,11 @@ function registrationReceiptCopy(student, receiptNo, cls, teacher, copyLabel) {
         <h3>បង្កាន់ដៃចុះឈ្មោះចូលរៀន</h3>
       </header>
       <main class="paper-body">
-        ${row(field("លេខចុះឈ្មោះ", receiptNo), field("អត្តលេខ", student.id), field("ឆ្នាំសិក្សា", student.academicYearName || activeYear()?.name))}
+        ${row(field("អត្តលេខ", student.id), field("លេខសំបុត្រកំណើត", student.birthCertificateNo), field("ឆ្នាំសិក្សា", student.academicYearName || activeYear()?.name))}
         <p class="paper-center-title">សូមបញ្ជាក់ថា</p>
         ${row(field("នាមនិងគោត្តនាមសិស្ស", student.khmerName, "wide"), field("ភេទ", label(student.gender)))}
-        ${row(field("អក្សរឡាតាំង", student.englishName, "wide"), field("ថ្នាក់", cls ? label(cls.name) : className(student.classId)), field("កម្រិត", student.classLevel || "ទាប"))}
-        ${row(field("កើតថ្ងៃទី", dob.day), field("ខែ", dob.month), field("ឆ្នាំ", dob.year), field("លេខសំបុត្រកំណើត", student.birthCertificateNo, "wide"))}
+        ${row(field("អក្សរឡាតាំង", student.englishName, "wide"), field("ថ្នាក់", cls ? label(cls.name) : studentDisplayClassName(student)), field("កម្រិត", student.classLevel || cls?.name || "ទាប"))}
+        ${row(field("កើតថ្ងៃទី", dob.day), field("ខែ", dob.month), field("ឆ្នាំ", dob.year))}
         ${row(field("ទីកន្លែងកំណើត", birthPlace, "full"))}
         ${row(field("ឈ្មោះឪពុក", student.fatherName, "wide"), field("មុខរបរ", student.fatherOccupation))}
         ${row(field("ឈ្មោះម្តាយ", student.motherName, "wide"), field("មុខរបរ", student.motherOccupation))}
@@ -1747,10 +1883,12 @@ function bindTeacherForm() {
     const data = Object.fromEntries(new FormData(event.currentTarget).entries());
     if (data.id) {
       Object.assign(getTeacher(data.id), data);
+      assignClassTeacher(data.assignedClassId, data.id);
       saveState(`បានកែប្រែគ្រូ ${data.name}`);
     } else {
       data.id = uid("TCH");
       state.teachers.unshift(data);
+      assignClassTeacher(data.assignedClassId, data.id);
       saveState(`បានបន្ថែមគ្រូ ${data.name}`);
     }
   });
@@ -1816,10 +1954,12 @@ function bindClassForm() {
     data.level = classLevelIndex(data.name);
     if (data.id) {
       Object.assign(getClass(data.id), data);
+      assignClassTeacher(data.id, data.teacherId);
       saveState(`បានកែប្រែថ្នាក់ ${label(data.name)}`);
     } else {
       data.id = uid("CLS");
       state.classes.push(data);
+      assignClassTeacher(data.id, data.teacherId);
       saveState(`បានបង្កើតថ្នាក់ ${label(data.name)}`);
     }
   });
@@ -1830,7 +1970,7 @@ function renderClassRows() {
     ...item,
     displayName: label(item.name),
     teacherName: getTeacher(item.teacherId)?.name || "មិនទាន់ចាត់តាំង",
-    enrolled: state.students.filter((student) => student.classId === item.id && student.status === "Active").length
+    enrolled: state.students.filter((student) => studentMatchesClassValue(student, item.id) && student.status === "Active").length
   }));
   renderTable("classesTable", rows, [
     ["ថ្នាក់", "displayName"],
@@ -1847,7 +1987,10 @@ function renderClassRows() {
   }, (id) => {
     if (!confirm("តើអ្នកចង់លុបថ្នាក់នេះមែនទេ? សិស្សនឹងត្រូវបានដាក់ជា មិនទាន់កំណត់ថ្នាក់។")) return;
     state.students.forEach((student) => {
-      if (student.classId === id) student.classId = "";
+      if (studentMatchesClassValue(student, id)) clearStudentClass(student);
+    });
+    state.teachers.forEach((teacher) => {
+      if (teacher.assignedClassId === id) teacher.assignedClassId = "";
     });
     state.classes = state.classes.filter((item) => item.id !== id);
     saveState(`បានលុបថ្នាក់ ${id}`);
@@ -1859,7 +2002,8 @@ function renderClassRows() {
 
 function showClassList(classId) {
   const item = getClass(classId);
-  const students = state.students.filter((student) => student.classId === classId);
+  if (!item) return;
+  const students = state.students.filter((student) => studentMatchesClassValue(student, classId));
   openModal(`
     <h2>បញ្ជីសិស្សថ្នាក់ ${label(item.name)}</h2>
     <p class="muted">មានសិស្សចុះឈ្មោះ ${students.length} នាក់។</p>
@@ -1873,7 +2017,7 @@ function showClassList(classId) {
 function renderPromotion() {
   const rows = state.students.filter((student) => student.status === "Active").map((student) => ({
     ...student,
-    className: className(student.classId),
+    className: studentDisplayClassName(student),
     nextLevel: nextLevel(student)
   }));
   $("#view-promotion").innerHTML = `
@@ -1895,29 +2039,34 @@ function renderPromotion() {
 }
 
 function nextLevel(student) {
-  const cls = getClass(student.classId);
+  const cls = resolveStudentClass(student);
   if (!cls) return "ត្រូវចាត់តាំងថ្នាក់";
   return cls.level >= gradeOrder.length - 1 ? "បានបញ្ចប់ និងអាចចូលថ្នាក់ទី ១" : label(gradeOrder[cls.level + 1]);
 }
 
-function promoteStudent(id) {
+function promoteStudent(id, options = {}) {
   const student = getStudent(id);
-  const cls = getClass(student.classId);
-  if (!cls) return;
+  if (!student) return false;
+  const cls = resolveStudentClass(student);
+  if (!cls) return false;
   if (cls.level >= gradeOrder.length - 1) {
+    applyStudentClass(student, cls);
     student.status = "Graduated";
     ensureCertificate(student);
   } else {
-    const nextClass = state.classes.find((item) => item.level === cls.level + 1);
-    if (nextClass) student.classId = nextClass.id;
+    const nextClass = classAtLevel(cls.level + 1);
+    if (!nextClass) return false;
+    applyStudentClass(student, nextClass);
   }
-  saveState(`បានឡើងថ្នាក់សិស្ស ${student.englishName}`);
+  if (options.save !== false) saveState(`បានឡើងថ្នាក់សិស្ស ${student.englishName}`);
+  return true;
 }
 
 function runPromotion() {
   if (!confirm("តើអ្នកចង់ដំណើរការឡើងថ្នាក់ប្រចាំឆ្នាំសម្រាប់សិស្សសកម្មទាំងអស់មែនទេ?")) return;
-  state.students.filter((student) => student.status === "Active").forEach((student) => promoteStudent(student.id));
-  saveState("បានបញ្ចប់ការឡើងថ្នាក់ប្រចាំឆ្នាំ");
+  const activeStudents = state.students.filter((student) => student.status === "Active");
+  const promotedCount = activeStudents.reduce((count, student) => count + (promoteStudent(student.id, { save: false }) ? 1 : 0), 0);
+  saveState(`បានបញ្ចប់ការឡើងថ្នាក់ប្រចាំឆ្នាំ (${promotedCount}/${activeStudents.length})`);
 }
 
 function ensureCertificate(student) {
@@ -2017,7 +2166,6 @@ function certificateMarkup(cert, student, printArea = false) {
         <main class="cert-content">
           <h2>វិញ្ញាបនបត្រមត្តេយ្យសិក្សា</h2>
           <h3>បានបញ្ចប់ការសិក្សាមត្តេយ្យថ្នាក់កម្រិតខ្ពស់</h3>
-          <p class="cert-intro">បានបញ្ជាក់ថា</p>
           <div class="cert-student-line cert-name-row">
             <span>បញ្ជាក់ថា</span>
             <strong class="cert-student-name">${studentName}</strong>
@@ -2074,7 +2222,41 @@ function renderCertificateBatchPages(rows) {
     <section class="certificate-print-item">
       ${certificateMarkup(certificateForStudent(student), student)}
     </section>
-  `).join("");
+  `).join("") || `<div class="empty-state">មិនមានវិញ្ញាបនបត្រសម្រាប់ថ្នាក់នេះទេ។</div>`;
+}
+
+function certificateClassOptions(rows) {
+  const optionsByValue = new Map();
+  rows.forEach((student) => {
+    const cls = resolveStudentClass(student);
+    const fallbackClass = student.classLevel || student.className;
+    const classValue = student.classId || (fallbackClass ? normalizeClassName(fallbackClass) : "");
+    if (!classValue) return;
+    const classLabel = label(cls?.name || student.classLevel || student.className || classValue);
+    optionsByValue.set(classValue, {
+      value: classValue,
+      label: classLabel,
+      level: classLevelIndex(cls?.name || student.classLevel || student.className),
+      name: classLabel
+    });
+  });
+  return [...optionsByValue.values()]
+    .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+}
+
+function certificateClassTabs(rows) {
+  return `
+    <button class="active" data-certificate-class-id="">ទាំងអស់</button>
+    ${certificateClassOptions(rows).map((item) => `<button data-certificate-class-id="${item.value}">${item.label}</button>`).join("")}
+  `;
+}
+
+function certificateStudentClassValues(student) {
+  return studentClassValues(student);
+}
+
+function certificateRowsForClass(rows, classValue) {
+  return classValue ? rows.filter((student) => certificateStudentClassValues(student).has(classValue)) : rows;
 }
 
 function showCertificateBatch(rows = studentRows(), title = "វិញ្ញាបនបត្រ") {
@@ -2086,8 +2268,7 @@ function showCertificateBatch(rows = studentRows(), title = "វិញ្ញា�
         <p class="muted" id="certificateBatchCount">បង្ហាញ ${toKhmerDigits(allRows.length)} សន្លឹក</p>
       </div>
       <div class="student-detail-class-tabs" id="certificateClassTabs">
-        <button class="active" data-certificate-class="">ទាំងអស់</button>
-        ${gradeOrder.map((item) => `<button data-certificate-class="${item}">${item}</button>`).join("")}
+        ${certificateClassTabs(allRows)}
       </div>
       <div class="page-actions">
         <button class="primary-btn" type="button" id="printCertificateBatchBtn"><i data-lucide="printer"></i>បោះពុម្ព / រក្សាទុក PDF</button>
@@ -2098,21 +2279,36 @@ function showCertificateBatch(rows = studentRows(), title = "វិញ្ញា�
     </div>
   `);
   $("#printCertificateBatchBtn").addEventListener("click", printCertificatesAsImages);
-  $$("[data-certificate-class]").forEach((button) => {
+  $$("[data-certificate-class-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      const classNameValue = button.dataset.certificateClass;
-      const nextRows = allRows.filter((student) => classMatchesStudent(student, classNameValue));
-      $$("[data-certificate-class]").forEach((item) => item.classList.toggle("active", item === button));
+      const classId = button.dataset.certificateClassId;
+      const nextRows = certificateRowsForClass(allRows, classId);
+      const classLabel = button.textContent.trim();
+      $$("[data-certificate-class-id]").forEach((item) => item.classList.toggle("active", item === button));
       $("#certificateBatchCount").textContent = `បង្ហាញ ${toKhmerDigits(nextRows.length)} សន្លឹក`;
-      $("#certificatePrintStack").innerHTML = renderCertificateBatchPages(nextRows);
+      const stack = $("#certificatePrintStack");
+      stack.dataset.certificateFilename = `${title}${classId ? `-${classLabel}` : ""}`.replace(/[\\/:*?"<>|]/g, "-");
+      stack.innerHTML = renderCertificateBatchPages(nextRows);
     });
   });
 }
 
+function waitForImages(scope) {
+  const images = Array.from(scope.querySelectorAll("img"));
+  return Promise.all(images.map((image) => {
+    if (image.complete && image.naturalWidth !== 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      image.onload = resolve;
+      image.onerror = resolve;
+    });
+  }));
+}
+
 async function captureCertificatePages() {
-  const certificates = $$(".certificate-print-stack .certificate-landscape");
-  const pages = certificates.length ? certificates : $$(".certificate-landscape");
+  const stack = $("#certificatePrintStack");
+  const pages = stack ? $$(".certificate-landscape", stack) : $$(".certificate-landscape");
   if (!pages.length) return [];
+  await waitForImages(stack || document);
   const originalScrollY = window.scrollY;
   window.scrollTo(0, 0);
   try {
@@ -2197,6 +2393,11 @@ async function printCertificatesAsImages() {
 
   try {
     const imageUrls = await captureCertificatePages();
+    if (!imageUrls.length) {
+      printWindow.close();
+      alert("មិនមានវិញ្ញាបនបត្រសម្រាប់បោះពុម្ពទេ។");
+      return;
+    }
     const pagesMarkup = imageUrls.map((src) => `
       <section class="certificate-print-page">
         <img src="${src}" alt="certificate">
@@ -2273,7 +2474,7 @@ async function downloadCertificateImage() {
 function renderReports() {
   const reports = [
     ["របាយការណ៍សិស្ស", "students_report.csv", studentRows(), ["id", "englishName", "gender", "age", "className", "status"]],
-    ["របាយការណ៍ឡើងថ្នាក់", "promotion_report.csv", state.students.map((student) => ({ id: student.id, name: student.englishName, class: className(student.classId), next: nextLevel(student), status: label(student.status) })), ["id", "name", "class", "next", "status"]],
+    ["របាយការណ៍ឡើងថ្នាក់", "promotion_report.csv", state.students.map((student) => ({ id: student.id, name: student.englishName, class: studentDisplayClassName(student), next: nextLevel(student), status: label(student.status) })), ["id", "name", "class", "next", "status"]],
     ["របាយការណ៍បញ្ចប់ការសិក្សា", "graduation_report.csv", certificateRows(), ["id", "studentName", "academicYear", "issueDate", "verificationCode"]]
   ];
   $("#view-reports").innerHTML = `
@@ -2409,12 +2610,12 @@ function renderSettings() {
           <label>ប្រភេទ<select name="type">${options(["Event", "Holiday", "Announcement"], "Event")}</select></label>
           <button class="primary-btn" type="submit"><i data-lucide="calendar-plus"></i>បន្ថែម</button>
         </form>
-        <div class="calendar-grid" style="margin-top:16px">${state.events.map((event) => `<div class="calendar-card"><strong>${event.date.slice(8)}</strong><span>${event.title}</span><p class="muted">${label(event.type)}</p></div>`).join("")}</div>
+        <div class="calendar-grid" style="margin-top:16px">${state.events.map((event) => `<div class="calendar-card"><strong>${String(event.date || "").slice(8) || "--"}</strong><span>${event.title}</span><p class="muted">${label(event.type)}</p></div>`).join("")}</div>
       </section>
       <section class="panel">
         <div class="panel-head"><h3>រំលឹកថ្ងៃកំណើត</h3></div>
         <div class="summary-list">
-          ${birthdayRows().map((student) => `<div class="summary-tile"><span>${student.englishName}</span><strong>${student.dob.slice(5)}</strong></div>`).join("") || `<p class="muted">មិនមានថ្ងៃកំណើតជិតមកដល់។</p>`}
+          ${birthdayRows().map((student) => `<div class="summary-tile"><span>${student.englishName}</span><strong>${String(student.dob || "").slice(5)}</strong></div>`).join("") || `<p class="muted">មិនមានថ្ងៃកំណើតជិតមកដល់។</p>`}
         </div>
       </section>
       <section class="panel">
@@ -2456,6 +2657,7 @@ function birthdayRows() {
   const now = new Date();
   return state.students.filter((student) => {
     const dob = new Date(student.dob);
+    if (Number.isNaN(dob.getTime())) return false;
     const next = new Date(now.getFullYear(), dob.getMonth(), dob.getDate());
     if (next < now) next.setFullYear(now.getFullYear() + 1);
     const days = Math.ceil((next - now) / 86400000);
